@@ -1,0 +1,522 @@
+\documentclass[11pt]{article}
+
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{fullpage}
+\usepackage[colorlinks, allcolors=blue]{hyperref}
+\usepackage{listings}
+\usepackage{parskip}
+\usepackage{url}
+\usepackage{courier}
+\usepackage[T1]{fontenc}
+% \usepackage{libertine}%% Only as example for the romans/sans fonts
+\usepackage[scaled=0.85]{beramono}
+\usepackage{changepage}
+\usepackage{nameref}
+
+\usepackage[bordercolor=white,backgroundcolor=gray!30,linecolor=black,colorinlistoftodos]{todonotes}
+\newcommand{\takeaway}[1]{\todo[color=yellow,inline]{#1}}
+
+\usepackage[style=iso]{datetime2}
+
+% Solarized colour scheme for listings
+\definecolor{solarized@base03}{HTML}{002B36}
+\definecolor{solarized@base02}{HTML}{073642}
+\definecolor{solarized@base01}{HTML}{586e75}
+\definecolor{solarized@base00}{HTML}{657b83}
+\definecolor{solarized@base0}{HTML}{839496}
+\definecolor{solarized@base1}{HTML}{93a1a1}
+\definecolor{solarized@base2}{HTML}{EEE8D5}
+\definecolor{solarized@base3}{HTML}{FDF6E3}
+\definecolor{solarized@yellow}{HTML}{B58900}
+\definecolor{solarized@orange}{HTML}{CB4B16}
+\definecolor{solarized@red}{HTML}{DC322F}
+\definecolor{solarized@magenta}{HTML}{D33682}
+\definecolor{solarized@violet}{HTML}{6C71C4}
+\definecolor{solarized@blue}{HTML}{268BD2}
+\definecolor{solarized@cyan}{HTML}{2AA198}
+\definecolor{solarized@green}{HTML}{859900}
+
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+}
+
+% Define C++ syntax highlighting colour scheme
+\lstdefinelanguage{cpp}{
+  language=C++,
+  basicstyle=\footnotesize\ttfamily,
+  numbers=left,
+  numberstyle=\footnotesize,
+  tabsize=2,
+  breaklines=true,
+  escapeinside={@}{@},
+  numberstyle=\tiny\color{solarized@base01},
+  keywordstyle=\color{solarized@green},
+  stringstyle=\color{solarized@cyan}\ttfamily,
+  identifierstyle=\color{solarized@blue},
+  commentstyle=\color{solarized@base01},
+  emphstyle=\color{solarized@red},
+  frame=single,
+  rulecolor=\color{solarized@base2},
+  rulesepcolor=\color{solarized@base2},
+  showstringspaces=false,
+}
+
+\lstdefinelanguage{diff}{
+  morecomment=[f][\color{blue}]{@@},           % group identifier
+  morecomment=[f][\color{red}]{-},             % deleted lines
+  morecomment=[f][\color{green!50!black}]{+},  % added lines
+  morecomment=[f][\color{magenta}]{---},       % diff header lines
+  morecomment=[f][\color{magenta}]{+++},
+}
+
+\lstdefinelanguage{plus}{
+  basicstyle=\footnotesize\ttfamily\color{green!50!black},
+  emph={see,below,TypeSwitch,unspecified},
+  emphstyle=\itshape
+}
+
+\lstdefinelanguage{signature}{
+  basicstyle=\ttfamily\color{green!50!black},
+  emph={see,below,TypeSwitch,unspecified},
+  emphstyle=\itshape
+}
+
+\newcommand{\desc}[1]{\textit{#1}}
+\newcommand{\requires}{\desc{Requires}}
+\newcommand{\effects}{\desc{Effects}}
+\newcommand{\precondition}{\desc{Precondition}}
+\newcommand{\postcondition}{\desc{Postcondition}}
+\newcommand{\throws}{\desc{Throws}}
+\newcommand{\returns}{\desc{Returns}}
+\newcommand{\remarks}{\desc{Remarks}}
+\newcommand{\exceptionsafety}{\desc{Exception Safety}}
+\newcommand{\fullref}[1]{\ref{#1} \nameref{#1}}
+
+\def\code#1{\texttt{#1}}
+\newcommand\mypound{\protect\scalebox{0.8}{\raisebox{0.4ex}{\#}}}
+\newcommand{\CC}{C\nolinebreak\hspace{-.05em}\raisebox{0.4ex}{\resizebox{!}{0.6\height}{\bf++}}}
+\newcommand{\cplusplus}{\protect\CC}
+
+\date{}
+\title{%
+  \code{constexpr} in Practice\\
+  \large Findings from our conference talk ``\code{constexpr} ALL the things!''}
+
+\newcommand{\emailaddressa}{bdeane@blizzard.com}
+\newcommand{\emaila}{\href{mailto:\emailaddressa}{\emailaddressa}}
+\newcommand{\emailaddressb}{jason@emptycrate.com}
+\newcommand{\emailb}{\href{mailto:\emailaddressb}{\emailaddressb}}
+
+\begin{document}
+
+\maketitle\vspace{-2cm}
+
+\begin{flushright}
+  \begin{tabular}{ll}
+  Document \mypound{}: &PXXXXR0\\
+  Date:       &\date{\today}\\
+  Project:    &Programming Language \cplusplus{}, WG21\\
+  Reply-to:   &\author{Ben Deane}, \emaila\\
+              &\author{Jason Turner}, \emailb\\
+  \end{tabular}
+\end{flushright}
+
+{\hypersetup{linkcolor=black}
+  \tableofcontents
+}
+
+\section{Introduction}
+This paper is a survey of part of the \code{constexpr} landscape as of mid-2017.
+In January 2017 we began work on a presentation for \cite{aspen}, subsequently
+also presented at \cite{bellevue}. The thesis for this talk was an exploration
+of \code{constexpr} techniques through the construction of a compile-time
+user-defined literal for JSON values, as exemplified by the following
+hypothetical code:
+
+\begin{lstlisting}[language=cpp]
+  constexpr auto jsv
+    = R"({
+          "feature-x-enabled": true,
+          "value-of-y": 1729,
+          "z-options": {"a": null,
+                        "b": "220 and 284",
+                        "c": [6, 28, 496]}
+         })"_json;
+  if constexpr (jsv["feature-x-enabled"]) {
+    // code for feature x
+  } else {
+    // code when feature x turned off
+  }
+\end{lstlisting}
+
+Although we achieved our goals, along the way we found some things we consider
+to be omissions and/or defects in the current standard (both in the library and
+in the language), as well as implementation bugs in standard libraries and
+varying behaviour between compilers. It is our hope that by highlighting current
+shortcomings and by giving insight into various use cases for \code{constexpr},
+this paper provides guidance for future \code{constexpr} standardization, and
+helpful considerations for implementers.
+
+\section{Representing JSON values}
+
+A JSON value is a discriminated union of six possibilities: null, a boolean, a
+number, a string, an array of values, or an object (which is a map of strings to
+values). Of these, nulls, booleans and numbers are immediately usable as literal
+types. Strings, arrays and objects require some implementation as compile-time
+containers.
+
+\subsection{A compile-time \code{vector} type}
+We implemented a simple bounded compile-time vector type with a size member of
+type \code{std::size\_t} and a data member of type \code{std::array<T, N>}.
+
+\begin{lstlisting}[language=cpp]
+namespace cx
+{
+  template <typename Value, std::size_t Size = 5>
+  class vector
+  {
+    using storage_t = std::array<Value, Size>;
+
+  public:
+    template<typename Itr>
+    constexpr vector(Itr begin, const Itr &end)
+    {
+      while (begin != end) {
+        push_back(*begin);
+        ++begin;
+      }
+    }
+    constexpr vector(std::initializer_list<Value> init)
+      : vector(init.begin(), init.end())
+    {
+    }
+
+    constexpr vector() = default;
+
+    // some functions omitted for the sake of brevity
+    // and initial exposition
+    // ...
+
+    constexpr auto capacity() const { return Size; }
+    constexpr auto size() const { return m_size; }
+    constexpr auto empty() const { return m_size == 0; }
+
+    constexpr void clear() { m_size = 0; }
+
+    constexpr const Value* data() const {
+      return m_data.data();
+    }
+
+  private:
+    storage_t m_data{};
+    std::size_t m_size{0};
+};
+\end{lstlisting}
+
+Our first surprise came when we tried to implement \code{begin()} and
+\code{end()} for this vector type in the obvious way:
+
+\begin{lstlisting}[language=cpp]
+template <typename Value, std::size_t Size = 5>
+class vector
+{
+  // ...
+
+  constexpr auto begin() const { return m_data.begin(); }
+  constexpr auto begin() { return m_data.begin(); }
+
+  constexpr auto end() const { return std::next(m_data.begin(), m_size); }
+  constexpr auto end() { return std::next(m_data.begin(), m_size); }
+
+  // ...
+};
+\end{lstlisting}
+
+The implementation of \code{std::next} in GCC 7.2 fails when used in a
+\code{constexpr} context, because of an internal function not being marked
+\code{constexpr}, as can be seen at \url{https://godbolt.org/g/4YBTN7}. The
+functions \code{std::advance} and \code{std::distance} fail in the same way.
+
+This issue appears fixed in a trunk build of GCC as of September 2017, and we
+don't take the issue as a failing of library authors, but rather as an
+indication that \code{constexpr} functions require extensive testing.
+
+\takeaway{%
+  If one is writing a \code{constexpr} function, adequate testing practically
+  requires a doubling-up of tests to ensure that everything works both when
+  invoked at runtime and also at compile time.}
+
+\subsection{Compile-time associative containers}
+We used the \code{constexpr} vector type for JSON strings
+(\code{cx::vector<char>}) and for JSON arrays (\code{cx::vector<JSON\_Value>}).
+JSON objects are maps from strings to values, so we used an array of pairs as
+the underlying storage for our map type.
+
+\begin{lstlisting}[language=cpp]
+template <typename Key, typename Value, std::size_t Size = 5,
+          typename Compare = std::equal_to<Key>>
+class map
+{
+public:
+  // ...
+
+private:
+  std::array<cx::pair<Key, Value>, Size> m_data{};
+  std::size_t m_size{0};
+};
+\end{lstlisting}
+
+Note the use of \code{cx::pair} rather than \code{std::pair}. We were unable to
+use \code{std::pair} because
+
+\takeaway{%
+  \code{std::pair}'s assignment operator is not \code{constexpr}.}
+
+This appears to be a defect in the standard, since if one has
+\code{constexpr}-friendly types inside a \code{std::pair}, one can clearly
+assign \code{first} and \code{second} in a \code{constexpr} context. The same is
+true of \code{std::tuple}.
+
+\subsection{Algorithms}
+In building a \code{constexpr} map type as an array of pairs, providing
+\code{operator[]} required a \code{constexpr} implementation of
+\code{std::find\_if}. This we provided by simply adding the keyword
+\code{constexpr} to a reference implementation found at
+\url{http://en.cppreference.com/w/cpp/algorithm/find}.
+
+\begin{lstlisting}[language=cpp]
+template <class InputIt, class UnaryPredicate>
+constexpr InputIt find_if(InputIt first, InputIt last, UnaryPredicate p)
+{
+  for (; first != last; ++first) {
+    if (p(*first)) {
+      return first;
+    }
+  }
+  return last;
+}
+\end{lstlisting}
+
+In the course of implementing our talk, we found \code{constexpr} uses for
+several other algorithms, e.g. \code{std::equal} and \code{std::mismatch}, which
+we provided similarly.
+
+\takeaway{%
+  It is our belief that all of the \cplusplus{}14-era (pre-parallel) algorithms,
+  may be made \code{constexpr}, in most cases just by adding \code{constexpr}.}
+
+Requirements for the three algorithms that may allocate memory --
+\code{std::inplace\_merge},\\ \code{std::stable\_partition}, and
+\code{std::stable\_sort} -- are written such that complexity guarantees are
+relaxed if there is not enough memory available, so we believe these could also
+be made \code{constexpr} with relaxed complexity.
+
+\subsection{Iterators}
+
+Using \code{constexpr} algorithms naturally requires \code{constexpr} iterators.
+We have a \code{constexpr} vector type with a \code{constexpr push\_back}
+operation.
+
+\takeaway {%
+  No functions on \code{std::back\_insert\_iterator} are yet
+  \code{constexpr}-friendly.}
+
+Having a \code{constexpr}-capable \code{back\_insert\_iterator} was
+useful to us, so we wrote an equivalent. We see no reason why most iterators and
+their member functions could not be marked \code{constexpr}, so that they may
+work with an appropriate \code{constexpr}-friendly container.
+
+\section{Parsing JSON values}
+
+Our basic approach to parsing the JSON user-defined literal at compile time was
+to build a parser combinator library using \code{constexpr} lambda expressions,
+and from this to build a JSON parser. The details of this approach can be found
+in our conference talks, and in the code at \cite{github}.
+
+\subsection{Multiple passes over the literal}
+
+In order to precompute size information we needed to make more than one pass
+over the literal to be parsed, and to this end we used the templated form of a
+string literal operator proposed in \cite{n3599}. This is currently implemented
+as an extension in GCC and Clang.
+
+\begin{lstlisting}[language=cpp]
+template <typename T, T... Ts>
+constexpr auto operator "" _json()
+{
+  const std::initializer_list<T> il{Ts...};
+  constexpr auto S = sizes<Ts...>();
+  auto val = value_wrapper<S.num_objects, S.string_size>{};
+  val.construct(std::string_view(il.begin(), il.size()));
+  return val;
+}
+\end{lstlisting}
+
+In order to achieve right-sizing of the JSON value, the return value of this
+operator is dependent on the output size required, which is computed from the
+literal itself.
+
+\takeaway {%
+  Multiple passes on the input, with later passes dependent on earlier ones,
+  would have been impossible without a templated user-defined literal operator.}
+
+On line 4 above, we use a \code{std::initializer\_list} to expand the template
+arguments. It doesn't need to be \code{constexpr} in this case, but naturally,
+being in a ``\code{constexpr} ALL the things!'' mindset, by default we typed
+\code{constexpr} in front of it, only to find that
+
+\takeaway {%
+  \code{constexpr std::initializer\_list} is not currently possible.}
+
+Although we are not sure of the possibilities or requirements here, this was at
+least surprising, and the source of an error in our slides and an issue logged
+against our github repository.
+
+On line 5 above, the possibility of using structured bindings to decompose
+\code{S.num\_objects} and \code{S.string\_size} occurred to us. Once again, we
+were surprised to find that
+
+\takeaway {%
+  structured bindings cannot currently be applied to \code{constexpr}
+  declarations.}
+
+\subsection{\code{std::string\_view}}
+In parsing JSON literals, we made extensive use of \code{std::string\_view}.
+However, we found a few operations where the particular library implementation
+available at the time (GCC 7.2) was not \code{constexpr}-capable, although the
+standard does specify \code{constexpr}:
+
+\begin{itemize}
+  \item constructing a \code{std::string\_view} from a \code{const char*}
+  \item \code{std::string\_view}'s \code{operator==}
+  \item member functions \code{remove\_prefix} and \code{remove\_suffix}
+\end{itemize}
+
+Like the issue with using \code{std::next}, these issues have been fixed in GCC
+trunk, but they serve to underline the requirement for \code{constexpr} tests.
+
+\section{Miscellany}
+
+\subsection{Oversights in the standard?}
+
+In the course of development, we found a few other things that seem to have
+missed the \code{constexpr} train for no good reason.
+
+\subsubsection{\code{std::swap} and \code{std::exchange}}
+
+Neither of these functions is currently marked \code{constexpr}, and by our
+thinking, they would be useful at compile-time. If \code{std::swap} were
+\code{constexpr}, we would naturally expect also that \code{swap} implemented as
+a member function on library types would also be \code{constexpr} where that
+makes sense (e.g. \code{std::array::swap}).
+
+\subsubsection{\code{std::array}}
+
+The ``trivial'' container operations on \code{std::array} are all
+\code{constexpr}. However, \code{swap} and \code{fill} are not, neither are the
+equality and comparison operators. To us, this seems like an omission.
+
+\takeaway {%
+  The standard seems to have several inconsistencies in applying
+  \code{constexpr}; in particular there seem to be oversights for mutating
+  operations and container operations which may be \code{constexpr}-friendly on
+  literal types.}
+
+\subsection{Debugging}
+
+Writing the code was not easy. In our experience, building up anything more than
+trivial \code{constexpr} constructs requires painstaking piecemeal work,
+frequently using primitive tools like \code{throw} to force errors in
+\code{constexpr} evaluation.
+
+In the case of building up parser combinators, the nesting depth of lambda
+expressions was such that compiler diagnostics were extremely large and obscure,
+even for template metaprogramming enthusiasts.
+
+\takeaway {%
+  The ability to provide custom diagnostics would have helped tremendously in
+  the development of our code.}
+
+\cite{p0596} is of particular interest to us as a potential facility for
+compile-time debugging.
+
+Although the focus of our presentation was entirely on compile-time computation,
+the mixing of runtime and compile-time calculations is currently problematic,
+given the inability to control or detect when the evaluation is occurring. This
+did lead to a bug in our slides: it's so easy to accidentally omit a
+\code{constexpr} keyword and get runtime results where purely compile-time was
+intended. A facility like \cite{p0595} would be very helpful here.
+
+\subsection{Other work}
+
+Much of our work was in discovering currently usable techniques for creating and
+manipulating structures at compile time. At the moment we are limited to
+fixed-size structures, and this greatly increases the complexity of solutions.
+If dynamic structures were available at compile time, this work would be a lot
+simpler.
+
+For this reason, we are very interested in the evolution of ideas in
+\cite{p0597} and \cite{p0639}.
+
+\section{Conclusion}
+Even with the inability to create dynamic structures at compile time, creating
+relatively complex structures is currently possible.
+
+The parser combinator approach offers, we think, an interesting technique for
+embedding all kinds of literals in \cplusplus{} code. It is relatively easy to
+construct new parsers with this technique. JSON values are just one example;
+other possible applications are compile-time regular expressions, URL
+decompositions, and more.
+
+Compile-time computation in relatively ``normal'' \code{constexpr} \cplusplus{},
+rather than template metaprogramming, is likely to become more widespread, and
+the development of the standard to better support use cases like ours is
+exciting.
+
+\section{References}
+%% \renewcommand{\section}[2]{}%
+\begin{thebibliography}{9}
+\bibitem[\cplusplus{}Now]{aspen}
+Ben Deane and Jason Turner.
+\textit{constexpr ALL the things!} presented at \cplusplus{}Now 2017\newline
+\url{https://www.youtube.com/watch?v=HMB9oXFobJc}
+
+\bibitem[CppCon]{bellevue}
+Ben Deane and Jason Turner,
+\emph{constexpr ALL the things!} presented at CppCon 2017\newline
+\url{https://www.youtube.com/watch?v=PJwd4JLYJJY}
+
+\bibitem[constexpr\_all\_the\_things]{github}
+Ben Deane and Jason Turner,
+\emph{constexpr\_all\_the\_things} git repository\newline
+\url{https://github.com/lefticus/constexpr_all_the_things}
+
+\bibitem[N3599]{n3599}
+Richard Smith,
+\emph{Literal operator templates for strings}\newline
+\url{http://open-std.org/JTC1/SC22/WG21/docs/papers/2013/n3599.html}
+
+\bibitem[P0596]{p0596}
+Daveed Vandevoorde,
+\emph{\code{std::constexpr\_trace} and \code{std::constexpr\_assert}}\newline
+\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0596r0.html}
+
+\bibitem[P0595]{p0595}
+Daveed Vandevoorde,
+\emph{The \code{constexpr} Operator}\newline
+\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0595r0.html}
+
+\bibitem[P0597]{p0597}
+Daveed Vandevoorde,
+\emph{\code{std::constexpr\_vector<T>}}\newline
+\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0597r0.html}
+
+\bibitem[P0639]{p0639}
+Antony Polukhin and Alexander Zaitsev,
+\emph{Changing attack vector of the \code{constexpr\_vector}}\newline
+\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0639r0.html}
+
+\end{thebibliography}
+
+\end{document}
