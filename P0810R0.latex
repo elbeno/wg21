@@ -114,9 +114,9 @@
 
 \begin{flushright}
   \begin{tabular}{ll}
-  Document \mypound{}: &PXXXXR0\\
-  Date:       &\date{\today}\\
-  Project:    &Programming Language \cplusplus{}, WG21\\
+  Document \mypound{}: &P0810R0\\
+  Date:       &\date{2017-10-12}\\
+  Audience:   &WG21\\
   Reply-to:   &\author{Ben Deane}, \emaila\\
               &\author{Jason Turner}, \emailb\\
   \end{tabular}
@@ -127,12 +127,12 @@
 }
 
 \section{Introduction}
-This paper is a survey of part of the \code{constexpr} landscape as of mid-2017.
-In January 2017 we began work on a presentation for \cite{aspen}, subsequently
-also presented at \cite{bellevue}. The thesis for this talk was an exploration
-of \code{constexpr} techniques through the construction of a compile-time
-user-defined literal for JSON values, as exemplified by the following
-hypothetical code:
+This paper is a survey of part of the \code{constexpr} landscape as of late
+2017. In January 2017 we began work on a presentation for \cite{aspen},
+subsequently also presented at \cite{bellevue}. The thesis for this talk was an
+exploration of \code{constexpr} techniques through the construction of a
+compile-time user-defined literal for JSON values, as exemplified by the
+following hypothetical code:
 
 \begin{lstlisting}[language=cpp]
   constexpr auto jsv
@@ -432,19 +432,25 @@ frequently using primitive tools like \code{throw} to force errors in
 
 In the case of building up parser combinators, the nesting depth of lambda
 expressions was such that compiler diagnostics were extremely large and obscure,
-even for template metaprogramming enthusiasts.
+even for experienced template metaprogrammers.
+
+Additionally, When the \cplusplus{} was working, but the JSON string to be
+parsed was ill-formed, there was no easy way to communicate the location and
+nature of the parse error. This prevented us from writing anything more than
+very primitive error handling, or setting up credible tests for intentionally
+failing parses.
 
 \takeaway {%
-  The ability to provide custom diagnostics would have helped tremendously in
-  the development of our code.}
+  The ability to provide custom compiler diagnostics would have helped
+  tremendously in the development, use, and testing of our code.}
 
 \cite{p0596} is of particular interest to us as a potential facility for
-compile-time debugging.
+compile-time debugging and testing.
 
 Although the focus of our presentation was entirely on compile-time computation,
 the mixing of runtime and compile-time calculations is currently problematic,
 given the inability to control or detect when the evaluation is occurring. This
-did lead to a bug in our slides: it's so easy to accidentally omit a
+did lead to a bug in our slides: it's easy to accidentally omit a
 \code{constexpr} keyword and get runtime results where purely compile-time was
 intended. A facility like \cite{p0595} would be very helpful here.
 
