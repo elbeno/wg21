@@ -127,12 +127,12 @@
 }
 
 \section{Introduction}
-This paper is a survey of part of the \code{constexpr} landscape as of late
-2017. In January 2017 we began work on a presentation for \cite{aspen},
-subsequently also presented at \cite{bellevue}. The thesis for this talk was an
-exploration of \code{constexpr} techniques through the construction of a
-compile-time user-defined literal for JSON values, as exemplified by the
-following hypothetical code:
+This paper surveys part of the \code{constexpr} landscape as of late 2017. In
+January 2017 we began work on a presentation for \cite{aspen}, subsequently also
+presented at \cite{bellevue}. The thesis for this talk was an exploration of
+\code{constexpr} techniques through the construction of a compile-time
+user-defined literal for JSON values, as exemplified by the following
+hypothetical code:
 
 \begin{lstlisting}[language=cpp]
   constexpr auto jsv
@@ -154,9 +154,9 @@ Although we achieved our goals, along the way we found some things we consider
 to be omissions and/or defects in the current standard (both in the library and
 in the language), as well as implementation bugs in standard libraries and
 varying behaviour between compilers. It is our hope that by highlighting current
-shortcomings and by giving insight into various use cases for \code{constexpr},
-this paper provides guidance for future \code{constexpr} standardization, and
-helpful considerations for implementers.
+shortcomings and giving insight into various use cases for \code{constexpr},
+this paper will provide guidance for future \code{constexpr} standardization
+and helpful considerations for implementers.
 
 \section{Representing JSON values}
 
@@ -234,18 +234,18 @@ class vector
 \end{lstlisting}
 
 The implementation of \code{std::next} in GCC 7.2 fails when used in a
-\code{constexpr} context, because of an internal function not being marked
+\code{constexpr} context because of an internal function not being marked
 \code{constexpr}, as can be seen at \url{https://godbolt.org/g/4YBTN7}. The
 functions \code{std::advance} and \code{std::distance} fail in the same way.
 
-This issue appears fixed in a trunk build of GCC as of September 2017, and we
-don't take the issue as a failing of library authors, but rather as an
-indication that \code{constexpr} functions require extensive testing.
+This issue appears fixed in a trunk build of GCC as of September 2017. We don't
+take the issue as a failing of library authors, but rather as an indication that
+\code{constexpr} functions require extensive testing.
 
 \takeaway{%
   If one is writing a \code{constexpr} function, adequate testing practically
   requires a doubling-up of tests to ensure that everything works both when
-  invoked at runtime and also at compile time.}
+  invoked at runtime and at compile time.}
 
 \subsection{Compile-time associative containers}
 We used the \code{constexpr} vector type for JSON strings
@@ -303,7 +303,7 @@ several other algorithms, e.g. \code{std::equal} and \code{std::mismatch}, which
 we provided similarly.
 
 \takeaway{%
-  It is our belief that all of the \cplusplus{}14-era (pre-parallel) algorithms,
+  It is our belief that all of the \cplusplus{}14-era (pre-parallel) algorithms
   may be made \code{constexpr}, in most cases just by adding \code{constexpr}.}
 
 Requirements for the three algorithms that may allocate memory --
@@ -330,14 +330,14 @@ work with an appropriate \code{constexpr}-friendly container.
 \section{Parsing JSON values}
 
 Our basic approach to parsing the JSON user-defined literal at compile time was
-to build a parser combinator library using \code{constexpr} lambda expressions,
-and from this to build a JSON parser. The details of this approach can be found
-in our conference talks, and in the code at \cite{github}.
+to build a parser combinator library using \code{constexpr} lambda expressions
+and, from this, to build a JSON parser. The details of this approach can be
+found in our conference talks and in the code at \cite{github}.
 
 \subsection{Multiple passes over the literal}
 
-In order to precompute size information we needed to make more than one pass
-over the literal to be parsed, and to this end we used the templated form of a
+In order to precompute size information, we needed to make more than one pass
+over the literal to be parsed. To this end, we used the templated form of a
 string literal operator proposed in \cite{n3599}. This is currently implemented
 as an extension in GCC and Clang.
 
@@ -407,19 +407,19 @@ missed the \code{constexpr} train for no good reason.
 
 Neither of these functions is currently marked \code{constexpr}, and by our
 thinking, they would be useful at compile-time. If \code{std::swap} were
-\code{constexpr}, we would naturally expect also that \code{swap} implemented as
-a member function on library types would also be \code{constexpr} where that
-makes sense (e.g. \code{std::array::swap}).
+\code{constexpr}, we would naturally expect that \code{swap} implemented as a
+member function on library types would also be \code{constexpr} where that makes
+sense (e.g. \code{std::array::swap}).
 
 \subsubsection{\code{std::array}}
 
 The ``trivial'' container operations on \code{std::array} are all
-\code{constexpr}. However, \code{swap} and \code{fill} are not, neither are the
-equality and comparison operators. To us, this seems like an omission.
+\code{constexpr}. However, \code{swap} and \code{fill} are not, and neither are
+the equality and comparison operators. To us, this seems like an omission.
 
 \takeaway {%
   The standard seems to have several inconsistencies in applying
-  \code{constexpr}; in particular there seem to be oversights for mutating
+  \code{constexpr}; in particular, there seem to be oversights for mutating
   operations and container operations which may be \code{constexpr}-friendly on
   literal types.}
 
@@ -434,11 +434,11 @@ In the case of building up parser combinators, the nesting depth of lambda
 expressions was such that compiler diagnostics were extremely large and obscure,
 even for experienced template metaprogrammers.
 
-Additionally, When the \cplusplus{} was working, but the JSON string to be
+Additionally, when the \cplusplus{} was working, but the JSON string to be
 parsed was ill-formed, there was no easy way to communicate the location and
 nature of the parse error. This prevented us from writing anything more than
-very primitive error handling, or setting up credible tests for intentionally
-failing parses.
+very primitive error handling and from setting up credible tests for
+intentionally failing parses.
 
 \takeaway {%
   The ability to provide custom compiler diagnostics would have helped
@@ -450,7 +450,7 @@ compile-time debugging and testing.
 Although the focus of our presentation was entirely on compile-time computation,
 the mixing of runtime and compile-time calculations is currently problematic,
 given the inability to control or detect when the evaluation is occurring. This
-did lead to a bug in our slides: it's easy to accidentally omit a
+did lead to a bug in our slides; it's easy to accidentally omit a
 \code{constexpr} keyword and get runtime results where purely compile-time was
 intended. A facility like \cite{p0595} would be very helpful here.
 
