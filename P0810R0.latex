@@ -338,8 +338,9 @@ found in our conference talks and in the code at \cite{github}.
 
 In order to precompute size information, we needed to make more than one pass
 over the literal to be parsed. To this end, we used the templated form of a
-string literal operator proposed in \cite{n3599}. This is currently implemented
-as an extension in GCC and Clang.
+string literal operator proposed in \cite{n3599} and furthered in \cite{p0424}.
+This is currently implemented as an extension in GCC and Clang in the form
+originally proposed.
 
 \begin{lstlisting}[language=cpp]
 template <typename T, T... Ts>
@@ -502,6 +503,11 @@ Ben Deane and Jason Turner,
 Richard Smith,
 \emph{Literal operator templates for strings}\newline
 \url{http://open-std.org/JTC1/SC22/WG21/docs/papers/2013/n3599.html}
+
+\bibitem[P0424]{p0424}
+Louis Dionne,
+\emph{Reconsidering literal operator templates for strings}\newline
+\url{http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0424r0.pdf}
 
 \bibitem[P0596]{p0596}
 Daveed Vandevoorde,
